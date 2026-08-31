@@ -26,13 +26,15 @@ from AmpliGone import cutlery
     [
         (22, True),
         (25, True),
-        (10, False),
+        (15, True),
+        (14, False),
         (26, False),
     ],
     ids=[
         "before_within_lookaround",
         "same_as_primerstart",
-        "before_outside_lookaround",
+        "exactly_ten_nucleotides_before",
+        "eleven_nucleotides_before",
         "higher_than_primerstart",
     ],
 )
@@ -53,13 +55,10 @@ def test_position_in_or_before_primer(read: int, result: bool) -> None:
         This function does not return any value. It asserts that the function's output matches the expected result.
     """
     primer_positions = (25, 35)
-    max_lookaround = 10
-    outcome = cutlery.position_in_or_before_primer(
-        read, primer_positions, max_lookaround
-    )
+    outcome = cutlery.position_in_or_before_primer(read, primer_positions)
     if outcome != result:
         raise AssertionError(
-            f"Expected {result} but got {outcome} while running cutlery.position_in_or_before_primer({read}, {primer_positions}, {max_lookaround})"
+            f"Expected {result} but got {outcome} while running cutlery.position_in_or_before_primer({read}, {primer_positions})"
         )
 
 
@@ -70,12 +69,18 @@ def test_position_in_or_before_primer(read: int, result: bool) -> None:
         (10, False),
         (25, True),
         (26, True),
+        (35, True),
+        (36, True),
+        (46, False),
     ],
     ids=[
         "before_within_lookaround",
         "before_outside_lookaround",
         "same_as_primerstart",
         "higher_than_primerstart",
+        "same_as_second_primerstart",
+        "exactly_ten_nucleotides_after",
+        "eleven_nucleotides_after",
     ],
 )
 def test_postition_in_or_after_primer(read: int, result: bool) -> None:
@@ -95,11 +100,8 @@ def test_postition_in_or_after_primer(read: int, result: bool) -> None:
         This function does not return any value. It asserts that the function's output matches the expected result.
     """
     primer_positions = (25, 35)
-    max_lookaround = 10
-    outcome = cutlery.position_in_or_after_primer(
-        read, primer_positions, max_lookaround
-    )
+    outcome = cutlery.position_in_or_after_primer(read, primer_positions)
     if outcome != result:
         raise AssertionError(
-            f"Expected {result} but got {outcome} while running cutlery.position_in_or_before_primer({read}, {primer_positions}, {max_lookaround})"
+            f"Expected {result} but got {outcome} while running cutlery.position_in_or_after_primer({read}, {primer_positions})"
         )

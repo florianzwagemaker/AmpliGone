@@ -62,9 +62,6 @@ class TestCutReads:
         The preset used for minimap2 alignment.
     scoring : list of int
         The scoring matrix used for minimap2 alignment.
-    fragment_lookaround_size : int
-        The number of bases to look around a fragment when cutting reads.
-
     Methods
     -------
     test_cut_reads_too_short()
@@ -85,8 +82,6 @@ class TestCutReads:
     reference = "tests/data/references/synthetic.fasta"
     preset = "sr"
     scoring: list[int] = []
-    fragment_lookaround_size = 10000
-
     def test_cut_reads_too_short(self) -> None:
         """
         Test that the `cut_reads` function skips reads that are too short to be processed.
@@ -124,8 +119,8 @@ class TestCutReads:
         primer_1 = set(range(0, 5))
         primer_2 = set(range(15, 20))
         primer_sets = (
-            defaultdict(set, {"synthetic_reference": primer_1}),
-            defaultdict(set, {"synthetic_reference": primer_2}),
+            defaultdict(set, {"homemade_reference": primer_1}),
+            defaultdict(set, {"homemade_reference": primer_2}),
         )
         result = cut_reads(
             data,
@@ -133,7 +128,6 @@ class TestCutReads:
             self.reference,
             self.preset,
             self.scoring,
-            self.fragment_lookaround_size,
             "end-to-end",
         )
         assert result.empty
@@ -168,8 +162,8 @@ class TestCutReads:
         empty_primer_1: set = set()
         empty_primer_2: set = set()
         primer_sets = (
-            defaultdict(set, {"synthetic_reference": empty_primer_1}),
-            defaultdict(set, {"synthetic_reference": empty_primer_2}),
+            defaultdict(set, {"homemade_reference": empty_primer_1}),
+            defaultdict(set, {"homemade_reference": empty_primer_2}),
         )
         result = cut_reads(
             data,
@@ -177,10 +171,43 @@ class TestCutReads:
             self.reference,
             self.preset,
             self.scoring,
-            self.fragment_lookaround_size,
             "end-to-end",
         )
         assert not result["Removed_coordinates"].iloc[0]  # empty list
+
+    @pytest.mark.parametrize(
+        ("primer_start", "is_trimmed"),
+        [(10, True), (11, False)],
+        ids=["exactly_ten_nucleotides_before", "eleven_nucleotides_before"],
+    )
+    def test_cut_reads_uses_fixed_primer_association_window(
+        self, primer_start: int, is_trimmed: bool
+    ) -> None:
+        """Associate forward reads only when their alignment starts within 10 nt."""
+        data: tuple[pd.DataFrame, int] = (
+            pd.DataFrame(
+                {
+                    "Readname": ["read_number_1"],
+                    "Sequence": [self.HAPPY_SEQ],
+                    "Qualities": [self.HAPPY_QUAL],
+                }
+            ),
+            0,
+        )
+        primer_sets = (
+            defaultdict(set, {"homemade_reference": set(range(primer_start, 20))}),
+            defaultdict(set, {"homemade_reference": {91}}),
+        )
+        result = cut_reads(
+            data,
+            primer_sets,
+            self.reference,
+            self.preset,
+            self.scoring,
+            "end-to-mid",
+        )
+
+        assert bool(result["Removed_coordinates"].iloc[0]) is is_trimmed
 
     @pytest.mark.parametrize("amplicon_type", AMPLICON_TYPES)
     def test_cut_reads_happy(self, amplicon_type: str) -> None:
@@ -215,8 +242,8 @@ class TestCutReads:
         primer_1 = set(range(0, 10))
         primer_2 = set(range(91, 101))
         primer_sets = (
-            defaultdict(set, {"synthetic_reference": primer_1}),
-            defaultdict(set, {"synthetic_reference": primer_2}),
+            defaultdict(set, {"homemade_reference": primer_1}),
+            defaultdict(set, {"homemade_reference": primer_2}),
         )
         result = cut_reads(
             data,
@@ -224,18 +251,17 @@ class TestCutReads:
             self.reference,
             self.preset,
             self.scoring,
-            self.fragment_lookaround_size,
             amplicon_type,
         )
         if amplicon_type == "end-to-end" or amplicon_type == "fragmented":
             ete_coords: list[int] = result["Removed_coordinates"].iloc[0]
             ete_expected_coords = list(primer_1) + list(primer_2)
-            assert ete_coords.sort() == ete_expected_coords.sort()
+            assert sorted(ete_coords) == sorted(ete_expected_coords)
         else:
             assert amplicon_type == "end-to-mid"
             etm_coords: list[int] = result["Removed_coordinates"].iloc[0]
             etm_expected_coords = list(primer_1)
-            assert etm_coords.sort() == etm_expected_coords.sort()
+            assert sorted(etm_coords) == sorted(etm_expected_coords)
 
     @pytest.mark.parametrize("amplicon_type", AMPLICON_TYPES)
     def test_cut_reads_primer_half_on_read(self, amplicon_type: str) -> None:
@@ -271,8 +297,8 @@ class TestCutReads:
         primer_1 = set(range(0, 10))
         primer_2 = set(range(91, 101))
         primer_sets = (
-            defaultdict(set, {"synthetic_reference": primer_1}),
-            defaultdict(set, {"synthetic_reference": primer_2}),
+            defaultdict(set, {"homemade_reference": primer_1}),
+            defaultdict(set, {"homemade_reference": primer_2}),
         )
         result = cut_reads(
             data,
@@ -280,18 +306,17 @@ class TestCutReads:
             self.reference,
             self.preset,
             self.scoring,
-            self.fragment_lookaround_size,
             amplicon_type,
         )
         if amplicon_type == "end-to-end" or amplicon_type == "fragmented":
             ete_coords: list[int] = result["Removed_coordinates"].iloc[0]
-            ete_expected_coords = list(primer_1) + list(primer_2)
-            assert ete_coords.sort() == ete_expected_coords.sort()
+            ete_expected_coords = list(range(5, 10)) + list(range(91, 96))
+            assert sorted(ete_coords) == sorted(ete_expected_coords)
         else:
             assert amplicon_type == "end-to-mid"
             etm_coords: list[int] = result["Removed_coordinates"].iloc[0]
-            etm_expected_coords = list(primer_1)
-            assert etm_coords.sort() == etm_expected_coords.sort()
+            etm_expected_coords = list(range(5, 10))
+            assert sorted(etm_coords) == sorted(etm_expected_coords)
 
     @pytest.mark.parametrize("amplicon_type", AMPLICON_TYPES)
     def test_cut_reads_wrong_primers(self, amplicon_type: str) -> None:
@@ -327,8 +352,8 @@ class TestCutReads:
         primer_1 = set(range(0, 10))
         primer_2 = set(range(91, 101))
         primer_sets = (
-            defaultdict(set, {"synthetic_reference": primer_1}),
-            defaultdict(set, {"synthetic_reference": primer_2}),
+            defaultdict(set, {"homemade_reference": primer_1}),
+            defaultdict(set, {"homemade_reference": primer_2}),
         )
         result = cut_reads(
             data,
@@ -336,7 +361,6 @@ class TestCutReads:
             self.reference,
             self.preset,
             self.scoring,
-            self.fragment_lookaround_size,
             amplicon_type,
         )
         assert not result["Removed_coordinates"].iloc[0]
