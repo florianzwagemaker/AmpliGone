@@ -237,44 +237,6 @@ def check_thread_count(
     return args
 
 
-def correct_fragment_lookaround_size(args: argparse.Namespace) -> argparse.Namespace:
-    """
-    Corrects the fragment lookaround size based on the amplicon type.
-
-    Parameters
-    ----------
-    args : argparse.Namespace
-        The command-line arguments.
-
-    Returns
-    -------
-    argparse.Namespace
-        The updated command-line arguments.
-
-    Notes
-    -----
-    This function adjusts the `fragment_lookaround_size` based on the `amplicon_type` value in the `args` namespace.
-    If the `amplicon_type` is not "fragmented", the `fragment_lookaround_size` is set to 10000.
-    If the `amplicon_type` is "fragmented" and `fragment_lookaround_size` is not provided, it is set to 10.
-    A warning message is logged if the `fragment_lookaround_size` is set to the default value.
-
-    Examples
-    --------
-    >>> args = argparse.Namespace(amplicon_type="fragmented", fragment_lookaround_size=None)
-    >>> corrected_args = correct_fragment_lookaround_size(args)
-    >>> print(corrected_args.fragment_lookaround_size)
-    10
-    """
-    if args.amplicon_type != "fragmented":
-        args.fragment_lookaround_size = 10000
-    elif args.fragment_lookaround_size is None:
-        args.fragment_lookaround_size = 10
-        log.warning(
-            "[yellow]No fragment lookaround size was given, [underline]using default of 10[/underline][/yellow]"
-        )
-    return args
-
-
 def parallel_dispatcher(
     indexed_reads: SequenceReads,
     args: argparse.Namespace,
@@ -321,7 +283,6 @@ def parallel_dispatcher(
             args.reference,
             preset,
             matrix,
-            fragment_lookaround_size=args.fragment_lookaround_size,
             amplicon_type=args.amplicon_type,
         )
 
@@ -338,7 +299,6 @@ def parallel(
     reference: str,
     preset: str,
     scoring: list[int],
-    fragment_lookaround_size: int,
     amplicon_type: str,
 ) -> pd.DataFrame:
     """
@@ -360,8 +320,6 @@ def parallel(
         The preset to use for alignment.
     scoring : list[int]
         The scoring matrix to use for alignment.
-        The size of the fragment lookaround.
-    fragment_lookaround_size : int
     amplicon_type : str
         The type of amplicon.
 
@@ -380,7 +338,6 @@ def parallel(
             reference,
             preset,
             scoring,
-            fragment_lookaround_size,
             amplicon_type,
             pm_processes=workers,
         )
@@ -483,8 +440,6 @@ def main(provided_args: list[str] | None = None) -> None:
     args = check_thread_count(indexed_reads, args)
 
     preset: str = AlignmentPreset.get_alignment_preset(args, indexed_reads)
-
-    args = correct_fragment_lookaround_size(args)
 
     log.info(
         f"Distributing {len(indexed_reads.tuples)} reads across {args.threads} threads for processing. Processing around [bold green]{round(len(indexed_reads.tuples)/args.threads)}[/bold green] reads per thread"

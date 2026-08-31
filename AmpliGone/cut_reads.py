@@ -85,8 +85,6 @@ class CuttingParameters:
     query_range : dict[str, int]
         A dictionary containing the start and end positions of the query sequence.
 
-    fragment_lookaround_size : int
-        The size of the fragment lookaround region.
     """
 
     position_needs_cutting: Callable[..., bool]
@@ -96,7 +94,6 @@ class CuttingParameters:
     read_direction: int
     cigar: List[List[int]]
     query_range: dict[str, int]
-    fragment_lookaround_size: int
 
 
 def cut_read(
@@ -137,9 +134,6 @@ def cut_read(
     query_end : int
         The end position of the read sequence on the query.
 
-    fragment_lookaround_size : int
-        The size of the fragment lookaround.
-
     Returns
     -------
     Tuple[str, str, List[int], int, int]
@@ -161,7 +155,6 @@ def cut_read(
             params.position_needs_cutting(
                 params.position_on_reference,
                 params.primer_list,
-                params.fragment_lookaround_size,
             )
             or cigar_type not in (0, 7)  # always end with a match
         ):
@@ -178,7 +171,6 @@ def cut_read(
         if not params.position_needs_cutting(
             params.position_on_reference,
             params.primer_list,
-            params.fragment_lookaround_size,
         ) and cigar_type in (0, 7):
             break
 
@@ -302,7 +294,6 @@ def cut_reads(
     reference: str,
     preset: str,
     scoring: List[int],
-    fragment_lookaround_size: int,
     amplicon_type: str,
 ) -> pd.DataFrame:
     """
@@ -325,9 +316,6 @@ def cut_reads(
 
     scoring : List[int]
         The scoring matrix used for minimap2 alignment.
-
-    fragment_lookaround_size : int
-        The number of bases to look around a fragment when cutting reads.
 
     amplicon_type : str
         The type of amplicon, either "end-to-end", "end-to-mid", or "fragmented".
@@ -436,7 +424,6 @@ def cut_reads(
                         read_direction=hit.strand,
                         cigar=hit.cigar,
                         query_range={"start": qstart, "end": qend},
-                        fragment_lookaround_size=fragment_lookaround_size,
                     )
                     read.seq, read.qual, removed_fw, qstart, qend = cut_read(
                         read, params
@@ -456,7 +443,6 @@ def cut_reads(
                         read_direction=hit.strand,
                         cigar=list(reversed(hit.cigar)),
                         query_range={"start": qstart, "end": qend},
-                        fragment_lookaround_size=fragment_lookaround_size,
                     )
                     read.seq, read.qual, removed_rv, qstart, qend = cut_read(
                         read, params
