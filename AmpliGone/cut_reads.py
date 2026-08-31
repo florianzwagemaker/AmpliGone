@@ -35,6 +35,7 @@ import pandas as pd
 from AmpliGone.log import log
 
 from AmpliGone.cutlery import position_in_or_after_primer, position_in_or_before_primer
+from AmpliGone.sequence_aware import trim_coordinate_unassociated_read
 
 
 @dataclass
@@ -348,6 +349,19 @@ def cut_reads(
     processed_qualities = []
     removed_coords_per_read = []  # A list of lists
 
+    def finalize_read(read: Read, removed_coordinates: list[int | None]) -> None:
+        """Apply sequence-aware trimming only when coordinate trimming removed nothing."""
+        if not removed_coordinates:
+            sequence_trim_result = trim_coordinate_unassociated_read(
+                read.seq, read.qual
+            )
+            read.seq = sequence_trim_result.sequence
+            read.qual = sequence_trim_result.qualities
+        processed_readnames.append(read.name)
+        processed_sequences.append(read.seq)
+        processed_qualities.append(read.qual)
+        removed_coords_per_read.append(removed_coordinates)
+
     max_iter = (
         10  # If more iterations are needed, the sequence is discarded (not recorded)
     )
@@ -362,9 +376,10 @@ def cut_reads(
             log_cache_info(index, total_reads, _threadnumber)
 
         if len(seq) < 42:
-            # Length of the read has to be at least ~42bp because the default k-mer size for the short reads preset (sr) is 21.
+            # Reads shorter than 42 bp bypass coordinate-based mapping because the sr preset's seeding and alignment-score thresholds make reliable mapping unlikely; 42 bp is an empirical cutoff, not a k-mer minimum.
 
             log.debug(f"Read with name '{name}' is too short to be processed.")
+            finalize_read(Read(name, seq, qual), [])
             continue
 
         read = Read(name, seq, qual)
@@ -377,20 +392,18 @@ def cut_reads(
             if cutting_is_done:
                 break
 
+            has_hit = False
             for hit in aligner.map(
                 read.seq
             ):  # Yields only one (or no) hit, as the aligner object was initiated with best_n=1
+                has_hit = True
                 if len(read.seq) < 5 and len(read.qual) < 5:
                     cutting_is_done = True
                     break
 
                 if read.seq == previous_seq:
-                    processed_readnames.append(read.name)
-                    processed_sequences.append(read.seq)
-                    processed_qualities.append(read.qual)
-                    removed_coords_per_read.append(
-                        removed_coords_fw + removed_coords_rv
-                    )
+                    # this means that the read sequence did not change after the last cut (iteration), which means that the read is not being cut anymore and we can move on to the next read.
+                    finalize_read(read, removed_coords_fw + removed_coords_rv)
                     cutting_is_done = True
                     break
 
@@ -448,6 +461,15 @@ def cut_reads(
                         read, params
                     )
                     removed_coords_rv.extend(removed_rv)
+
+            if not has_hit:
+                # here the read did not align to the reference, which makes it 
+                # a) impossible to cut based on primer coordinates, and
+                # b) impossible to report the 'removed coordinatates' for the read.
+                # TODO: The amount of nucleotides removed from the read is something that should be reported, but this requires a bigger overhaul as we need to move away from the current 'remove coordinates' reporting system.
+                finalize_read(read, [])
+                cutting_is_done = True
+                break
 
     return pd.DataFrame(
         {
