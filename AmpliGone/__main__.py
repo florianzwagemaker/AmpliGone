@@ -241,6 +241,7 @@ def parallel_dispatcher(
     indexed_reads: SequenceReads,
     args: argparse.Namespace,
     primer_sets: tuple[defaultdict, defaultdict],
+    primer_df: pd.DataFrame,
     preset: str,
     matrix: list[int],
 ) -> pd.DataFrame:
@@ -255,6 +256,8 @@ def parallel_dispatcher(
         The command-line arguments.
     primer_sets : tuple[defaultdict, defaultdict]
         The primer sequences to be removed.
+    primer_df : pd.DataFrame
+        The full primer DataFrame for sequence-aware trimming.
     preset : str
         The preset configuration for processing.
     matrix : list[int]
@@ -280,6 +283,7 @@ def parallel_dispatcher(
             cut_reads,
             args.threads,
             primer_sets,
+            primer_df,
             args.reference,
             preset,
             matrix,
@@ -296,6 +300,7 @@ def parallel(
     function: Callable[..., pd.DataFrame],
     workers: int,
     primer_sets: tuple[defaultdict, defaultdict],
+    primer_df: pd.DataFrame,
     reference: str,
     preset: str,
     scoring: list[int],
@@ -312,8 +317,11 @@ def parallel(
         The function to apply to the DataFrame.
     workers : int
         The number of workers to use for parallel processing.
-    primer_df : tuple[defaultdict, defaultdict]
+    primer_sets : tuple[defaultdict, defaultdict]
         A tuple containing the indexes of the primer coordinates to remove.
+
+    primer_df : pd.DataFrame
+        The full primer DataFrame for sequence-aware trimming.
     reference : str
         The reference sequence to use for alignment.
     preset : str
@@ -339,6 +347,7 @@ def parallel(
             preset,
             scoring,
             amplicon_type,
+            primer_df,
             pm_processes=workers,
         )
     )
@@ -448,7 +457,7 @@ def main(provided_args: list[str] | None = None) -> None:
     indexed_reads.frame = indexed_reads.frame.sample(frac=1).reset_index(drop=True)
 
     processed_reads = parallel_dispatcher(
-        indexed_reads, args, primer_indexes, preset, matrix
+        indexed_reads, args, primer_indexes, primer_df, preset, matrix
     )
 
     total_nuc_preprocessing = sum(

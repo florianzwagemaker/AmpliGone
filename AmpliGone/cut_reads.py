@@ -296,6 +296,7 @@ def cut_reads(
     preset: str,
     scoring: List[int],
     amplicon_type: str,
+    primer_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """
     Cut reads based on primer locations and reference mapping.
@@ -320,6 +321,9 @@ def cut_reads(
 
     amplicon_type : str
         The type of amplicon, either "end-to-end", "end-to-mid", or "fragmented".
+
+    primer_df : pd.DataFrame, optional
+        The full primer DataFrame, passed to sequence-aware trimming.
 
     workers : int
         The number of workers to use for parallel processing.
@@ -353,7 +357,7 @@ def cut_reads(
         """Apply sequence-aware trimming only when coordinate trimming removed nothing."""
         if not removed_coordinates:
             sequence_trim_result = trim_coordinate_unassociated_read(
-                read.seq, read.qual
+                read.seq, read.qual, primer_df
             )
             read.seq = sequence_trim_result.sequence
             read.qual = sequence_trim_result.qualities
