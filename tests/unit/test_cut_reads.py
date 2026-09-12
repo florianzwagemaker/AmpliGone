@@ -257,11 +257,15 @@ class TestCutReads:
             ete_coords: list[int] = result["Removed_coordinates"].iloc[0]
             ete_expected_coords = list(primer_1) + list(primer_2)
             assert sorted(ete_coords) == sorted(ete_expected_coords)
+            assert result["Modified_forward"].iloc[0]
+            assert result["Modified_reverse"].iloc[0]
         else:
             assert amplicon_type == "end-to-mid"
             etm_coords: list[int] = result["Removed_coordinates"].iloc[0]
             etm_expected_coords = list(primer_1)
             assert sorted(etm_coords) == sorted(etm_expected_coords)
+            assert result["Modified_forward"].iloc[0]
+            assert not result["Modified_reverse"].iloc[0]
 
     @pytest.mark.parametrize("amplicon_type", AMPLICON_TYPES)
     def test_cut_reads_primer_half_on_read(self, amplicon_type: str) -> None:

@@ -162,13 +162,15 @@ class TestArgs:
         assert unmodified_output_path(output) == expected
 
     def test_get_unmodified_reads(self) -> None:
-        """Only nonempty reads without removed coordinates go to the secondary file."""
+        """Only nonempty reads modified at zero or one end go to the secondary file."""
         reads = pd.DataFrame(
             {
-                "Readname": ["trimmed", "unmodified", "empty"],
-                "Sequence": ["AAAA", "CCCC", ""],
-                "Qualities": ["IIII", "IIII", ""],
-                "Removed_coordinates": [[1, 2], [], []],
+                "Readname": ["both", "forward", "reverse", "neither", "empty"],
+                "Sequence": ["AAAA", "CCCC", "GGGG", "TTTT", ""],
+                "Qualities": ["IIII", "IIII", "IIII", "IIII", ""],
+                "Removed_coordinates": [[1, 2], [1], [2], [], []],
+                "Modified_forward": [True, True, False, False, True],
+                "Modified_reverse": [True, False, True, False, True],
             }
         )
 
@@ -176,20 +178,23 @@ class TestArgs:
 
         assert result.to_dict(orient="records") == [
             {
-                "Readname": "unmodified",
-                "Sequence": "CCCC",
+                "Readname": name,
+                "Sequence": sequence,
                 "Qualities": "IIII",
             }
+            for name, sequence in [("forward", "CCCC"), ("reverse", "GGGG"), ("neither", "TTTT")]
         ]
 
     def test_get_modified_reads(self) -> None:
-        """Only nonempty reads with removed coordinates go to the normal file."""
+        """Only nonempty reads modified at both ends go to the normal file."""
         reads = pd.DataFrame(
             {
-                "Readname": ["trimmed", "unmodified", "empty"],
-                "Sequence": ["AAAA", "CCCC", ""],
-                "Qualities": ["IIII", "IIII", ""],
-                "Removed_coordinates": [[1, 2], [], [3]],
+                "Readname": ["both", "forward", "reverse", "neither", "empty"],
+                "Sequence": ["AAAA", "CCCC", "GGGG", "TTTT", ""],
+                "Qualities": ["IIII", "IIII", "IIII", "IIII", ""],
+                "Removed_coordinates": [[1, 2], [1], [2], [], []],
+                "Modified_forward": [True, True, False, False, True],
+                "Modified_reverse": [True, False, True, False, True],
             }
         )
 
@@ -197,7 +202,7 @@ class TestArgs:
 
         assert result.to_dict(orient="records") == [
             {
-                "Readname": "trimmed",
+                "Readname": "both",
                 "Sequence": "AAAA",
                 "Qualities": "IIII",
             }
