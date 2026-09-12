@@ -81,4 +81,4 @@ python_version = "3.10"
 files = ["AmpliGone/", "tests/"]
 
 [tool.pytest.ini_options]
-addopts = "-sv --cov=AmpliGone/ tests/"
+addopts = "-sv"

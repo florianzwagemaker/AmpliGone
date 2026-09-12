@@ -183,7 +183,7 @@ jobs:
       continue-on-error: true
       run: |
         mkdir -p ${{ env.REPORT_PATH }}
-        pytest --cov-report=xml:${{ env.REPORT_PATH }}coverage.xml
+        pytest --cov=AmpliGone/ --cov-report=xml:${{ env.REPORT_PATH }}coverage.xml
 
     - name: Upload coverage report
       if: always()
