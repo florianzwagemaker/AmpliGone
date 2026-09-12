@@ -16,8 +16,14 @@ TestArgs
     A class containing unit tests for the `get_args` function.
 """
 
+import pandas as pd
 import pytest
 
+from AmpliGone.__main__ import (
+    _get_modified_reads,
+    _get_unmodified_reads,
+    unmodified_output_path,
+)
 from AmpliGone.args import get_args
 from tests.e2e.config_parser import ConfigParser
 
@@ -141,3 +147,58 @@ class TestArgs:
                         assert args_value == expected_value
                     else:  # args_value has absolute path, expected_value has relative path
                         assert expected_value in args_value
+
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [
+            ("sample.fastq", "sample.unmodified.fastq"),
+            ("sample.fq", "sample.unmodified.fq"),
+            ("sample.fastq.gz", "sample.unmodified.fastq.gz"),
+            ("sample.fq.gz", "sample.unmodified.fq.gz"),
+        ],
+    )
+    def test_unmodified_output_path(self, output: str, expected: str) -> None:
+        """The secondary output path preserves the input FASTQ suffixes."""
+        assert unmodified_output_path(output) == expected
+
+    def test_get_unmodified_reads(self) -> None:
+        """Only nonempty reads without removed coordinates go to the secondary file."""
+        reads = pd.DataFrame(
+            {
+                "Readname": ["trimmed", "unmodified", "empty"],
+                "Sequence": ["AAAA", "CCCC", ""],
+                "Qualities": ["IIII", "IIII", ""],
+                "Removed_coordinates": [[1, 2], [], []],
+            }
+        )
+
+        result = _get_unmodified_reads(reads)
+
+        assert result.to_dict(orient="records") == [
+            {
+                "Readname": "unmodified",
+                "Sequence": "CCCC",
+                "Qualities": "IIII",
+            }
+        ]
+
+    def test_get_modified_reads(self) -> None:
+        """Only nonempty reads with removed coordinates go to the normal file."""
+        reads = pd.DataFrame(
+            {
+                "Readname": ["trimmed", "unmodified", "empty"],
+                "Sequence": ["AAAA", "CCCC", ""],
+                "Qualities": ["IIII", "IIII", ""],
+                "Removed_coordinates": [[1, 2], [], [3]],
+            }
+        )
+
+        result = _get_modified_reads(reads)
+
+        assert result.to_dict(orient="records") == [
+            {
+                "Readname": "trimmed",
+                "Sequence": "AAAA",
+                "Qualities": "IIII",
+            }
+        ]

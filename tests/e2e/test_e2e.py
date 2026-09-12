@@ -12,7 +12,7 @@ from typing import Generator
 
 import pytest
 
-from AmpliGone.__main__ import main
+from AmpliGone.__main__ import main, unmodified_output_path
 from tests.e2e.config_parser import ConfigParser
 
 
@@ -69,6 +69,9 @@ class TestE2e:  # pylint: disable=too-few-public-methods
             output_path = case["pipeline_args"]["--output"]
             if os.path.exists(output_path):
                 os.remove(output_path)
+            unmodified_path = unmodified_output_path(output_path)
+            if os.path.exists(unmodified_path):
+                os.remove(unmodified_path)
 
     def _order_fastq_by_name(self, fastq_lines: list[str]) -> list[str]:
         """
@@ -172,6 +175,9 @@ class TestE2e:  # pylint: disable=too-few-public-methods
                 self._compare_outputs(
                     test_case["pipeline_args"]["--output"],
                     test_case["test_args"]["comparison_file"],
+                )
+                assert os.path.exists(
+                    unmodified_output_path(test_case["pipeline_args"]["--output"])
                 )
         if test_case["test_args"].get(
             "expected_log_message", None

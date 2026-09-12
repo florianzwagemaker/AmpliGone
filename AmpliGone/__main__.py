@@ -9,6 +9,7 @@ import sys
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
 from itertools import chain
+from pathlib import Path
 from typing import Callable
 
 import pandas as pd
@@ -25,6 +26,37 @@ from AmpliGone.cut_reads import cut_reads
 from AmpliGone.fasta2bed import coord_lists_to_bed, find_or_read_primers
 from AmpliGone.io_ops import SequenceReads, write_output
 from AmpliGone.log import log
+
+
+def unmodified_output_path(output: str) -> str:
+    """Return the sibling FASTQ path used for reads without removed coordinates."""
+    output_path = Path(output)
+    if output_path.suffix == ".gz":
+        fastq_path = output_path.with_suffix("")
+        return str(
+            fastq_path.with_name(
+                f"{fastq_path.stem}.unmodified{fastq_path.suffix}.gz"
+            )
+        )
+    return str(
+        output_path.with_name(f"{output_path.stem}.unmodified{output_path.suffix}")
+    )
+
+
+def _get_unmodified_reads(processed_reads: pd.DataFrame) -> pd.DataFrame:
+    """Return nonempty processed reads for which no coordinates were removed."""
+    return processed_reads[
+        processed_reads["Sequence"].ne("")
+        & processed_reads["Removed_coordinates"].map(lambda coordinates: not coordinates)
+    ].drop(columns=["Removed_coordinates"])
+
+
+def _get_modified_reads(processed_reads: pd.DataFrame) -> pd.DataFrame:
+    """Return nonempty processed reads for which coordinates were removed."""
+    return processed_reads[
+        processed_reads["Sequence"].ne("")
+        & processed_reads["Removed_coordinates"].map(bool)
+    ].drop(columns=["Removed_coordinates"])
 
 
 def check_loaded_index(
@@ -60,6 +92,11 @@ def check_loaded_index(
         if args.to is True:
             read_records = indexed_reads.frame.to_dict(orient="records")
             write_output(args.output, read_records, threads=args.threads)
+            write_output(
+                unmodified_output_path(args.output),
+                read_records,
+                threads=args.threads,
+            )
             if args.export_primers is not None:
                 with open(args.export_primers, "w", encoding="utf-8") as f:
                     f.write("")
@@ -489,8 +526,13 @@ def main(provided_args: list[str] | None = None) -> None:
         ]
         coord_lists_to_bed(filtered_primer_df, args.export_primers)
 
-    processed_reads = processed_reads.drop(columns=["Removed_coordinates"])
+    unmodified_reads = _get_unmodified_reads(processed_reads)
+    modified_reads = _get_modified_reads(processed_reads)
 
-    read_records = processed_reads.to_dict(orient="records")
+    read_records = modified_reads.to_dict(orient="records")
+    unmodified_read_records = unmodified_reads.to_dict(orient="records")
 
     write_output(args.output, read_records, args.threads)
+    write_output(
+        unmodified_output_path(args.output), unmodified_read_records, args.threads
+    )

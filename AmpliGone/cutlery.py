@@ -4,11 +4,11 @@ This module provides functions to determine if a position is within a specified 
 Functions
 ---------
 position_in_or_before_primer(pos: int, clist: List[int]) -> bool
-    Determine if a position is within 10 nucleotides of the closest position in the list of primer positions
+    Determine if a position is within 5 nucleotides of the closest position in the list of primer positions
     and the position is less than or equal to the closest position in the list.
 
 position_in_or_after_primer(pos: int, clist: List[int]) -> bool
-    Determine if a position is within 10 nucleotides of the closest position in the list of primer positions
+    Determine if a position is within 5 nucleotides of the closest position in the list of primer positions
     and the position is greater than or equal to the closest position in the list.
 
 Notes
@@ -34,7 +34,7 @@ def position_in_or_before_primer(
     pos: int, clist: List[int]
 ) -> bool:
     """
-    Determine if a position is within 10 nucleotides of the closest position in the list of primer positions
+    Determine if a position is within 5 nucleotides of the closest position in the list of primer positions
     and the position is less than or equal to the closest position in the list.
 
     Parameters
@@ -46,7 +46,7 @@ def position_in_or_before_primer(
     Returns
     -------
     bool
-        True if the position is within 10 nucleotides of the closest position in the list AND the position is
+        True if the position is within 5 nucleotides of the closest position in the list AND the position is
         less than or equal to the closest position in the list, False otherwise.
 
     """
@@ -55,7 +55,7 @@ def position_in_or_before_primer(
         return abs(x - pos)
 
     near = min(clist, key=_default, default=0)
-    return abs(pos - near) <= 10 and pos <= near
+    return abs(pos - near) <= 5 and pos <= near
 
 
 @cache
@@ -63,7 +63,7 @@ def position_in_or_after_primer(
     pos: int, clist: List[int]
 ) -> bool:
     """
-    Determine if a position is within 10 nucleotides of the closest position in the list of primer positions
+    Determine if a position is within 5 nucleotides of the closest position in the list of primer positions
     and the position is greater than or equal to the closest position in the list.
 
     Parameters
@@ -75,7 +75,7 @@ def position_in_or_after_primer(
     Returns
     -------
     bool
-        True if the position is within 10 nucleotides of the closest position in the list AND the position is
+        True if the position is within 5 nucleotides of the closest position in the list AND the position is
         greater than or equal to the closest position in the list, False otherwise.
 
     """
@@ -84,4 +84,4 @@ def position_in_or_after_primer(
         return abs(x - pos)
 
     near = min(clist, key=_default, default=0)
-    return abs(pos - near) <= 10 and pos >= near
+    return abs(pos - near) <= 5 and pos >= near
