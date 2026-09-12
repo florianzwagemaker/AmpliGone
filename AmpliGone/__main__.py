@@ -44,19 +44,35 @@ def unmodified_output_path(output: str) -> str:
 
 
 def _get_unmodified_reads(processed_reads: pd.DataFrame) -> pd.DataFrame:
-    """Return nonempty processed reads for which no coordinates were removed."""
+    """Return nonempty reads modified at zero or one read end."""
     return processed_reads[
         processed_reads["Sequence"].ne("")
-        & processed_reads["Removed_coordinates"].map(lambda coordinates: not coordinates)
-    ].drop(columns=["Removed_coordinates"])
+        & ~(
+            processed_reads["Modified_forward"]
+            & processed_reads["Modified_reverse"]
+        )
+    ].drop(
+        columns=[
+            "Removed_coordinates",
+            "Modified_forward",
+            "Modified_reverse",
+        ]
+    )
 
 
 def _get_modified_reads(processed_reads: pd.DataFrame) -> pd.DataFrame:
-    """Return nonempty processed reads for which coordinates were removed."""
+    """Return nonempty reads modified at both read ends."""
     return processed_reads[
         processed_reads["Sequence"].ne("")
-        & processed_reads["Removed_coordinates"].map(bool)
-    ].drop(columns=["Removed_coordinates"])
+        & processed_reads["Modified_forward"]
+        & processed_reads["Modified_reverse"]
+    ].drop(
+        columns=[
+            "Removed_coordinates",
+            "Modified_forward",
+            "Modified_reverse",
+        ]
+    )
 
 
 def check_loaded_index(

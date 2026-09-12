@@ -331,8 +331,9 @@ def cut_reads(
     Returns
     -------
     pd.DataFrame
-        A pandas DataFrame with columns "Readname", "Sequence", "Qualities", and "Removed_coordinates",
-        representing the processed reads and the coordinates that were removed.
+        A pandas DataFrame with columns "Readname", "Sequence", "Qualities",
+        "Removed_coordinates", "Modified_forward", and "Modified_reverse",
+        representing the processed reads, removed coordinates, and whether each read end was modified.
     """
     frame, _threadnumber = data
     log.debug(
@@ -352,8 +353,15 @@ def cut_reads(
     processed_sequences = []
     processed_qualities = []
     removed_coords_per_read = []  # A list of lists
+    modified_forward_per_read = []
+    modified_reverse_per_read = []
 
-    def finalize_read(read: Read, removed_coordinates: list[int | None]) -> None:
+    def finalize_read(
+        read: Read,
+        removed_coordinates: list[int | None],
+        removed_coordinates_fw: list[int | None],
+        removed_coordinates_rv: list[int | None],
+    ) -> None:
         """Apply sequence-aware trimming only when coordinate trimming removed nothing."""
         if not removed_coordinates:
             sequence_trim_result = trim_coordinate_unassociated_read(
@@ -365,6 +373,8 @@ def cut_reads(
         processed_sequences.append(read.seq)
         processed_qualities.append(read.qual)
         removed_coords_per_read.append(removed_coordinates)
+        modified_forward_per_read.append(bool(removed_coordinates_fw))
+        modified_reverse_per_read.append(bool(removed_coordinates_rv))
 
     max_iter = (
         10  # If more iterations are needed, the sequence is discarded (not recorded)
@@ -383,7 +393,7 @@ def cut_reads(
             # Reads shorter than 42 bp bypass coordinate-based mapping because the sr preset's seeding and alignment-score thresholds make reliable mapping unlikely; 42 bp is an empirical cutoff, not a k-mer minimum.
 
             log.debug(f"Read with name '{name}' is too short to be processed.")
-            finalize_read(Read(name, seq, qual), [])
+            finalize_read(Read(name, seq, qual), [], [], [])
             continue
 
         read = Read(name, seq, qual)
@@ -407,7 +417,12 @@ def cut_reads(
 
                 if read.seq == previous_seq:
                     # this means that the read sequence did not change after the last cut (iteration), which means that the read is not being cut anymore and we can move on to the next read.
-                    finalize_read(read, removed_coords_fw + removed_coords_rv)
+                    finalize_read(
+                        read,
+                        removed_coords_fw + removed_coords_rv,
+                        removed_coords_fw,
+                        removed_coords_rv,
+                    )
                     cutting_is_done = True
                     break
 
@@ -471,7 +486,12 @@ def cut_reads(
                 # a) impossible to cut based on primer coordinates, and
                 # b) impossible to report the 'removed coordinatates' for the read.
                 # TODO: The amount of nucleotides removed from the read is something that should be reported, but this requires a bigger overhaul as we need to move away from the current 'remove coordinates' reporting system.
-                finalize_read(read, [])
+                finalize_read(
+                    read,
+                    removed_coords_fw + removed_coords_rv,
+                    removed_coords_fw,
+                    removed_coords_rv,
+                )
                 cutting_is_done = True
                 break
 
@@ -481,5 +501,7 @@ def cut_reads(
             "Sequence": processed_sequences,
             "Qualities": processed_qualities,
             "Removed_coordinates": removed_coords_per_read,
+            "Modified_forward": modified_forward_per_read,
+            "Modified_reverse": modified_reverse_per_read,
         }
     )
