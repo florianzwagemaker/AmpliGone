@@ -1,0 +1,10 @@
+{
+    "forward_flanks": {
+        "left": "AAGGTTAA",
+        "right": "CAGCACCT"
+    },
+    "reverse_flanks": {
+        "left": "GGTGCTG",
+        "right": "TTAACCTTAGCAAT"
+    }
+}

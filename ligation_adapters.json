@@ -1,0 +1,10 @@
+{
+    "ligation_adapter": {
+        "top_strand": "CCTGTACTTCGTTCAGTTACGTATTGCT",
+        "bottom_strand": "GCAATACGTAACTGAACGAAGTACAGG"
+    },
+    "native_adapter": {
+        "top_strand": "CCTGTACTTCGTTCAGTTACGTATTGCT",
+        "bottom_strand": "ACGTAACTGAACGAAGTACAGG"
+    }
+}
